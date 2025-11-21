@@ -41,7 +41,8 @@ function PANEL:Reveal(goOut)
     end
 
     self:AlphaTo(0, 0.5)
-    timer.Create("LagDetectPanel", 0.5, 1, function()
+    timer.Simple(0.5, function()
+        if not self:IsValid() then return end
         self.ScaleTween = self.Scale
         self:Hide()
     end)
