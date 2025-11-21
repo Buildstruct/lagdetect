@@ -98,41 +98,54 @@ local function ChangeTimeScale(scale, ms, svr)
     prev_scale = scale
 end
 
-local function FindIntersects(svr)
-    local allents = ents.FindByClass("prop_*")
-    table.Add(allents, ents.FindByClass("func_physbox"))
+local function FindIntersects()
+    local entities = ents.FindByClass("prop_*")
+    table.Add(entities, ents.FindByClass("func_physbox"))
 
     local intersects = {}
-    for _, ent in ipairs(allents) do
-        local physobj = ent:GetPhysicsObject()
 
-        if not IsValid(physobj) then continue end
-        if not physobj:IsPenetrating() then continue end
-
-        table.insert(intersects, physobj)
-    end
-
-    -- svr = it is very dangerous and we must deal with it
-    if svr ~= 1 then
-        return intersects
-    end
-
-    local total = 0
-    for _, physobj in ipairs(intersects) do
-        total = total + 1
-        physobj:EnableMotion(false)
-        local ent = physobj:GetEntity()
-        if constraint.HasConstraints(ent) then
-            for k, v in ipairs(constraint.GetAllConstrainedEntities(ent)) do
-                total = total + 1
-                physobj:EnableMotion(false)
+    -- check if any physobjs are intersecting for each entity
+    for _, ent in ipairs(entities) do
+        for i = 0, ent:GetPhysicsObjectCount() - 1 do
+            local physobj = ent:GetPhysicsObjectNum(i)
+            if IsValid(physobj) and physobj:IsPenetrating() then
+                intersects[#intersects + 1] = ent
+                break
             end
         end
     end
 
-    Notify(true, Color(255, 150, 25), "Severe lag!! Froze all intersecting and constrained props (", total, ")")
-
     return intersects
+end
+
+local function FreezeWithConstrained(entities)
+    local found = {}
+
+    -- populate lookup table of all constrained entities
+    for _, ent in ipairs(entities) do
+        found[ent] = true
+        local constrained = constraint.GetAllConstrainedEntities(ent)
+        for ent2 in pairs(constrained) do
+            found[ent2] = true
+        end
+    end
+
+    local total = 0
+
+    -- freeze every physobj of each entity
+    for ent in pairs(found) do
+        for i = 0, ent:GetPhysicsObjectCount() - 1 do
+            local physobj = ent:GetPhysicsObjectNum(i)
+            if IsValid(physobj) then
+                physobj:EnableMotion(false)
+                total = total + 1
+            end
+        end
+    end
+
+    Notify(true, Color(255, 150, 25), "Severe lag!! Froze all intersecting and constrained physics objects (", total, ")")
+
+    return total
 end
 
 local function Defuse(svr)
@@ -141,7 +154,7 @@ local function Defuse(svr)
     speed = newspeed
 
     -- find intersecting props
-    local intersects = FindIntersects(svr)
+    local intersects = FindIntersects()
     if #intersects == 0 then
         -- not having the possible intersects notification implies zero intersects
         if debug_mode:GetBool() then
@@ -153,20 +166,17 @@ local function Defuse(svr)
 
     -- find owner of the most props
     local owners = {}
-    for _, physobj in ipairs(intersects) do
-        local ent = physobj:GetEntity()
+    local total = 0
+    for _, ent in ipairs(intersects) do
         local owner = ent.CPPIGetOwner and ent:CPPIGetOwner() or nil
-        if owner and (IsValid(owner) or owner:IsWorld()) then
+        if owner and (owner:IsValid() or owner:IsWorld()) then
             owners[owner] = (owners[owner] or 0) + 1
+            total = total + 1
         end
     end
     if #owners == 0 then return end
 
     local most = table.GetWinningKey(owners)
-    local total = 0
-    for ply, num in pairs(owners) do
-        total = total + num
-    end
 
     local percent = math.Round((owners[most] / total) * 100, 1)
     local c, n, s = color_white, "[[WORLD]]", "World" -- if it's the world, throw some placeholder stuff in
@@ -266,7 +276,10 @@ hook.Add("Think", "LagDetect_Think", function()
                 return
             end
 
-            if level == 1 then FindIntersects(1) end
+            if level == 1 then
+                local intersects = FindIntersects()
+                FreezeWithConstrained(intersects)
+            end
 
             timer.Adjust("LagDetect_Cooldown", Cooldown(level, t))
             timer.Start("LagDetect_Cooldown") -- refresh the cooldown
