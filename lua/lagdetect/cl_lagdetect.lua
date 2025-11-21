@@ -4,7 +4,7 @@ local function Notify(msg)
 end
 
 local p, m = Color(255, 50, 25), "[LagDetect] "
-net.Receive("lagdetect_notify",function()
+net.Receive("lagdetect_notify", function()
     local textTable = net.ReadTable(true)
     local notify = net.ReadBool()
 

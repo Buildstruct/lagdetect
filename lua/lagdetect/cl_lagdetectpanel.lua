@@ -1,9 +1,9 @@
-surface.CreateFont("LagDetect",{
+surface.CreateFont("LagDetect", {
     font = "Arial",
     size = 18,
     italic = true,
 })
-surface.CreateFont("LagDetectTick",{
+surface.CreateFont("LagDetectTick", {
     font = "Arial",
     size = 14,
     italic = false,

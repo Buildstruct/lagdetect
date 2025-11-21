@@ -12,9 +12,9 @@ local level = #speeds + 1
 local msgcolor = color_white
 local p, m = Color(255, 50, 25), "[LagDetect] "
 local cv = GetConVar("phys_timescale")
-local debug_mode = CreateConVar("lagdetect_debug", 0, FCVAR_NEVER_AS_STRING, "Enable debug printing for LagDetect", 0, 1)
-local cv_enabled = CreateConVar("lagdetect_enabled",1,FCVAR_NEVER_AS_STRING,"Enable lag detection/mitigation (RECOMMENDATION: Leave this on, and set mintrigger higher to save from a worst case scenario!)",0,1)
-local cv_minlag = CreateConVar("lagdetect_mintrigger",0,FCVAR_NEVER_AS_STRING,"Minimum lag amount to trigger (in ms). Set this higher to lower sensitivity",0,10000)
+local debug_mode = CreateConVar("lagdetect_debug", "0", FCVAR_NEVER_AS_STRING, "Enable debug printing for LagDetect", 0, 1)
+local cv_enabled = CreateConVar("lagdetect_enabled", "1", FCVAR_NEVER_AS_STRING, "Enable lag detection/mitigation (RECOMMENDATION: Leave this on, and set mintrigger higher to save from a worst case scenario!)", 0, 1)
+local cv_minlag = CreateConVar("lagdetect_mintrigger", "0", FCVAR_NEVER_AS_STRING, "Minimum lag amount to trigger (in ms). Set this higher to lower sensitivity", 0, 10000)
 
 util.AddNetworkString("lagdetect_notify")
 
@@ -321,7 +321,7 @@ hook.Add("PlayerSpawnedProp", "LagDetect_PlayerSpawnedProp", function(ply, _, en
     if not monitor_props:GetBool() then return end
     if not IsValid(ent) then return end
     if not IsValid(ent:GetPhysicsObject()) then return end
-    timer.Simple(0,function()
+    timer.Simple(0, function()
         if not IsValid(ent) then return end
         if not IsValid(ent:GetPhysicsObject()) then return end
         if not ent:GetPhysicsObject():IsMotionEnabled() then return end
@@ -332,7 +332,7 @@ hook.Add("PlayerSpawnedProp", "LagDetect_PlayerSpawnedProp", function(ply, _, en
         local count = 0
         for _, v in ipairs(ents.FindInSphere(ent:GetPos(), GetSmallestSize(ent) * 2)) do
             if not IsValid(ent:GetPhysicsObject()) then continue end
-            if not string.StartsWith(v:GetClass(),"prop") then continue end
+            if not string.StartsWith(v:GetClass(), "prop") then continue end
 
             count = count + 1
             if ent == v then continue end
@@ -351,7 +351,7 @@ hook.Add("PlayerSpawnedProp", "LagDetect_PlayerSpawnedProp", function(ply, _, en
     end)
 end)
 
-concommand.Add("lagdetect_debug_dump", function(ply, str, args, argstr)
+concommand.Add("lagdetect_debug_dump", function(ply, _, _, argstr)
     local overlaps_str = ""
     if argstr == "v" then
         overlaps_str = "\nplayer dump:"
@@ -364,7 +364,7 @@ concommand.Add("lagdetect_debug_dump", function(ply, str, args, argstr)
     end
 
     net.Start("lagdetect_notify")
-    net.WriteTable({ msgcolor,"Debug info:",
+    net.WriteTable({ msgcolor, "Debug info:",
         "\ncurrent ms (instant) : ", t,
         "\ncurrent ms (smoothed): ", math.Round(t_avg, 3),
         overlaps_str }, true)
