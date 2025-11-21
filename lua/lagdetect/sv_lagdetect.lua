@@ -175,14 +175,14 @@ local function Defuse(svr)
     end
 
     Notify(true, Color(255, 60, 40), #intersects, msgcolor, " possible intersecting ents, ", c,
-            n, msgcolor, " [", s, "] has the most (", HSVToColor(90 - percent * 0.9, 0.8, 1),
-            owners[most], ", ", percent, "%", msgcolor, ")")
+        n, msgcolor, " [", s, "] has the most (", HSVToColor(90 - percent * 0.9, 0.8, 1),
+        owners[most], ", ", percent, "%", msgcolor, ")")
 end
 
 local function CooldownDone() -- begin ramping timescale back up
-    timer.Create("recover", 0.5, 0, function()
+    timer.Create("LagDetect_Recover", 0.5, 0, function()
         if speed == 1 then
-            timer.Remove("recover")
+            timer.Remove("LagDetect_Recover")
             level = #speeds + 1
             ChangeTimeScale(1)
 
@@ -212,7 +212,7 @@ end
 
 local lastSendTick = CurTime()
 local t_avg = 0
-hook.Add("Think", "lagdetector", function()
+hook.Add("Think", "LagDetect_Think", function()
     if not cv_enabled:GetBool() then return end
     local mult = 0.6 + speed * 0.4
     t_raw = physenv.GetLastSimulationTime() * 1000
@@ -224,7 +224,7 @@ hook.Add("Think", "lagdetector", function()
     --]]
     t_avg = t_avg + (t - t_avg) / 6
 
-    if timer.Exists("cooldown") and CurTime() - lastSendTick > 1 then
+    if timer.Exists("LagDetect_Cooldown") and CurTime() - lastSendTick > 1 then
         net.Start("lagdetect_scale")
             net.WriteBool(true)
             net.WriteFloat(t)
@@ -244,15 +244,15 @@ hook.Add("Think", "lagdetector", function()
             level = k
 
             Defuse(level)
-            timer.Create("cooldown", Cooldown(level, t), 1, CooldownDone)
-            timer.Remove("recover")
+            timer.Create("LagDetect_Cooldown", Cooldown(level, t), 1, CooldownDone)
+            timer.Remove("LagDetect_Recover")
 
             return
         end
 
         if level < k then return end
 
-        if timer.Exists("cooldown") and timer.TimeLeft("cooldown") < 1.5 then -- if timer is about to expire
+        if timer.Exists("LagDetect_Cooldown") and timer.TimeLeft("LagDetect_Cooldown") < 1.5 then -- if timer is about to expire
             local ts = math.Round(cv:GetFloat(), 2)
 
             if ts ~= speed then
@@ -260,16 +260,16 @@ hook.Add("Think", "lagdetector", function()
 
                 level = #speeds + 1
 
-                timer.Remove("cooldown")
-                timer.Remove("recover")
+                timer.Remove("LagDetect_Cooldown")
+                timer.Remove("LagDetect_Recover")
 
                 return
             end
 
             if level == 1 then FindIntersects(1) end
 
-            timer.Adjust("cooldown", Cooldown(level, t))
-            timer.Start("cooldown") -- refresh the cooldown
+            timer.Adjust("LagDetect_Cooldown", Cooldown(level, t))
+            timer.Start("LagDetect_Cooldown") -- refresh the cooldown
 
             --for displaying the timescale in debug
             ChangeTimeScale(ts, t)
@@ -288,8 +288,8 @@ local function GetSmallestSize(ent)
 
     local ra, rb = ent:GetPhysicsObject():GetAABB()
     if not ra then
-        print("[LagDetect] Invalid AABB detected for prop "..ent:GetModel()..", entity "..tostring(ent))
-        ra,rb = Vector(),Vector()
+        print("[LagDetect] Invalid AABB detected for prop " .. ent:GetModel() .. ", entity " .. tostring(ent))
+        ra, rb = Vector(), Vector()
     end
     local r = math.min(rb.x - ra.x, rb.y - ra.y, rb.z - ra.z) / 2
 
@@ -317,7 +317,7 @@ end
 local monitor_props = CreateConVar("lagdetect_monitor_propspawns", 1, FCVAR_NEVER_AS_STRING, "Enable prop spawn monitoring", 0, 1)
 local overlaps = {} -- tbl of players and how much overlap their latest prop spawns have
 
-hook.Add("PlayerSpawnedProp", "lagdetect_propspawn", function(ply, _, ent)
+hook.Add("PlayerSpawnedProp", "LagDetect_PlayerSpawnedProp", function(ply, _, ent)
     if not monitor_props:GetBool() then return end
     if not IsValid(ent) then return end
     if not IsValid(ent:GetPhysicsObject()) then return end
@@ -344,8 +344,8 @@ hook.Add("PlayerSpawnedProp", "lagdetect_propspawn", function(ply, _, ent)
         local overlap_n = math.ceil(math.max((overlap / 3) - 0.5, 0) ^ 0.8)
         if overlap_n > overlaps[ply].notify then
             Notify(true, team.GetColor(ply:Team()), ply:GetName(), msgcolor, " is spawning a lot of intersecting props! (",
-                    HSVToColor(math.max(0, 75 - count * 3), 0.8, 1), count, msgcolor, " props, ",
-                    HSVToColor(math.max(0, 90 - overlap / (count - 1) * 90), 0.8, 1), math.Round(overlap, 2), msgcolor, " total overlap)")
+                HSVToColor(math.max(0, 75 - count * 3), 0.8, 1), count, msgcolor, " props, ",
+                HSVToColor(math.max(0, 90 - overlap / (count - 1) * 90), 0.8, 1), math.Round(overlap, 2), msgcolor, " total overlap)")
         end
         overlaps[ply].notify = overlap_n
     end)
